@@ -1,4 +1,5 @@
 //testingcommits
+#include<stdlib.h>
 #include<iostream>
 #include<string>
 #include<cmath>
@@ -78,10 +79,19 @@ class Board
 {
 	Square square[8][8];
 	Color turn = WHITE;
+
+    bool king_is_in_check = false; //this variable is solely to decide checkmate and not to decide 
+	                               //the current state of the king (i.e whether it is in check or not)
+								   //to check if the king is in check or not, we seperately call the isKingInCheck fn.
+
 	bool short_castles_white = true;
 	bool long_castles_white = true;
 	bool short_castles_black = true;
 	bool long_castles_black = true;
+
+	/*Piece check_piece;
+	Color check_color;*/
+	int check_x, check_y;
 	
 	void printBoard()
     {
@@ -166,7 +176,10 @@ class Board
 public:
 	Square* getSquare(int x, int y)
 	{
-		return &square[x][y];
+		if (x == -1 || y == -1)
+		    return NULL;
+		else 
+		    return &square[x][y];
 	}
 
 	Square* getKingSquare()
@@ -182,6 +195,8 @@ public:
 				}
 			}
 		}
+		cout<<"Returning NULL"<<endl;
+		return NULL;
 	}
 
 	void setSquare(Square * s, int x, int y)
@@ -192,26 +207,29 @@ public:
 	bool isCheckmate(Square* kingSquare)
 	{
 		if (!isKingInCheck(kingSquare))
+		{
+			king_is_in_check = false;
+			cout<<turn<<" "<<"king is not in check"<<endl;
 		    return false;
+		}
 		else 
 		{
-			
-			
 			if (canKingMoveOrKill(kingSquare))
 			{
-				//cout<<"KING CAN MOVE"<<endl;
+				cout<<"KING CAN MOVE"<<endl;
 				cout<<"Check"<<endl;
 				return false;
 			}
-			else if (canPieceBeCaptured())
+			else if (canPieceBeCaptured(kingSquare))
 			{
-				//cout<<"ATTACKING PIECE CAN BE CAPTURED"<<endl;
+				king_is_in_check = true;
+				cout<<"ATTACKING PIECE CAN BE CAPTURED"<<endl;
 				cout<<"Check"<<endl;
 				return false;
 			}
 			else if (canPieceObstruct())
 			{
-				//cout<<"PIECE CAN OBSTRUCT"<<endl;
+				cout<<"PIECE CAN OBSTRUCT"<<endl;
 				cout<<"Check"<<endl;
 				return false;
 			}
@@ -247,25 +265,35 @@ public:
 				if (i == 0 && j == 0)
 				    continue;
 				ex = x + i, why = y + j;
+				cout<<ex<<" "<<why<<"   ";
 				if (ex < 0 || ex > 7 || why < 0 || why > 7)
 				    continue;
 				if (square[ex][why].getColor() == turn)
 				    continue;
 				if (!isSquareUnderThreat(opp,ex,why))
-				    return true;
+				{
+					cout<<"Returning true because that last square is not under threat"<<endl;
+					return true;
+				}
 			}
 		}
         return false;
 	}
 
-    bool canPieceBeCaptured()
+    bool canPieceBeCaptured(Square* kingSquare)
 	{
-		string captured;
-		cout<<"Can the Piece be captured? "; cin>>captured;
-		if (captured == "yes")
-		    return true;
+		Color opponent;
+		Square* attacking_piece = getSquare(check_x, check_y);
+
+        if (turn == WHITE)
+		    opponent = BLACK;
 		else 
-		    return false;
+		    opponent = BLACK;
+        
+		if (isSquareUnderThreat(turn, check_x, check_y)) // Note that it checks the validity of the captures move also
+		    return true;
+		
+		return false;
 	}
 	
 	bool canPieceObstruct()
@@ -285,8 +313,8 @@ public:
 	    bool stop = false;
 	    while (!stop)
 	    {
-		    (turn == WHITE) ? cout << "White's turn" << endl : cout << "Black's turn" << endl;
-		    cout << "Type in your move [(R/r)esign]: " << endl;
+		    (turn == WHITE) ? cout<<"White's turn"<<endl : cout<<"Black's turn"<<endl;
+		    cout<<"Type in your move [(R/r)esign]: ";
 		    cin >> move;
 			if (move == "R" || move == "r" )
 			{
@@ -294,7 +322,7 @@ public:
 				cout<<endl;
 				return false;
 			}
-			//input is via normal chess algebra
+			//input is via normal chess algebra (ALL CAPS, i think xD)
 		    x1 = move[0] - 65;
 		    y1 = move[1] - 49;
 		    x2 = move[2] - 65;
@@ -302,13 +330,15 @@ public:
 		    if (getSquare(x1, y1)->getColor() == turn)
 		    {
                 if (makeMove(x1, y1, x2, y2) == false)
-			        cout << "Invalid move, try again." << endl;
+			        cout<<"Invalid move, try again."<<endl;
 			    else
                     stop = true;
             }
 		    else
-			    cout << "That's not your piece. Try again." << endl;
+			    cout<<"Not your turn"<< endl;
 	    }
+
+	    cout<<"Changing turns"<<endl;
 
         if (turn == BLACK)
 		{
@@ -316,6 +346,7 @@ public:
 			Square* kingSquare = getKingSquare();
             if (isCheckmate(kingSquare))
 			    return false;
+			king_is_in_check = false;
 		}
 	    else
 		{
@@ -323,6 +354,7 @@ public:
 			Square* kingSquare = getKingSquare();
             if (isCheckmate(kingSquare))
 			    return false;
+			king_is_in_check = false;
 		}
 
         return true;
@@ -377,7 +409,7 @@ public:
 		//clear the screen and output the board after every new move
 		//top left shows name of white player
 		//bottom right shows name of black player
-        system("cls");
+        //system("CLS");
 		cout <<"Chess v1.0"<<endl<<"by Joel Jacob"<<endl<<endl;
 		cout<<player_white<<endl;
         printBoard();
@@ -390,7 +422,7 @@ public:
 	{
 		if (x1 < 0 || x1>7 || y1 < 0 || y1>7 || x2 < 0 || x2>7 || y2 < 0 || y2>8)
 	    {
-		    std::cout << "One of your inputs was our of bounds" << std::endl;
+		    std::cout << "out of bounds" << std::endl;
 		    return false;
 	    }
 	    Square* src = getSquare(x1, y1);
@@ -398,7 +430,7 @@ public:
 
 	    if (src->getColor() == dest->getColor() && dest->getColor() != NONE)
 	    {
-		    cout << "Invalid move: cannot land on your own piece" << std::endl;
+		    cout << "Cannot land on your own piece" << std::endl;
 		    return false;
 	    }
 
@@ -423,9 +455,11 @@ public:
 		Color opp;
 		if (turn == WHITE)
 		   opp = BLACK;
-		if (turn == BLACK)
+		else if (turn == BLACK)
 		   opp = WHITE;
+		//cout<<turn<<" "<<opp<<endl;
 		return isSquareUnderThreat(opp,ex,why) ;
+		
 	}
 
     bool validateShortCastle(Square* kingSquare)
@@ -467,11 +501,21 @@ public:
 	{
 		Square *candidate_square;
 		int ex, why;
+		Color temp;
 
+		//cout<<opponent<<endl;
+
+		if (opponent == WHITE)
+		    temp = BLACK;
+		else 
+		    temp = WHITE;
+        
+		//cout<<temp<<" "<<opponent<<endl;
 		//check diagonal (for bishop and queen)
 		//forward up
 		cout<<"CHECKING DIAGONALS"<<endl;
 		ex = x, why = y;
+		//cout<<"d1 ";
 		while(true)
 		{
 			ex = ex + 1;
@@ -483,16 +527,27 @@ public:
 			}
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
             {
                 break;
             }
 			if ((candidate_piece == BISHOP || candidate_piece == QUEEN) && candidate_color == opponent)
             {
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				//cout<<check_x<<" "<<check_y<<endl;
                 return true;
             }
 		}
 		//backward up
+		//cout<<"d2 ";
 		ex = x, why = y;
 		while(true)
 		{
@@ -505,16 +560,29 @@ public:
 			candidate_square = getSquare(ex, why);
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == BISHOP || candidate_piece == QUEEN) && candidate_color == opponent)
 			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				//cout<<check_x<<" "<<check_y<<endl;
                 return true;
             }
 		}
 		//backward down
+		//cout<<"d3 ";
 		ex = x, why = y;
 		while(true)
 		{
@@ -527,16 +595,29 @@ public:
 			}
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == BISHOP || candidate_piece == QUEEN) && candidate_color == opponent)
 			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				//cout<<check_x<<" "<<check_y<<endl;
                 return true;
             }
 		}
 		//forward down
+		//cout<<"d4 ";
 		ex = x, why = y;
 		while(true)
 		{
@@ -549,18 +630,31 @@ public:
 			}
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == BISHOP || candidate_piece == QUEEN) && candidate_color == opponent)
 			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+		    	//cout<<check_x<<" "<<check_y<<endl;
                 return true;
             }
 		}
 
 		//check vertical (for rook and queen)
 		//up
+		cout<<"CHECKING VERT AND HOR"<<endl;
 		ex = x, why = y;
 		while(true)
 		{
@@ -571,12 +665,25 @@ public:
             candidate_square = getSquare(ex, why);
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == ROOK || candidate_piece == QUEEN) && candidate_color == opponent)
+			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
 			    return true;
+			}
 		}
 		//down
 		ex = x, why = y;
@@ -589,12 +696,25 @@ public:
 			    break;
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == ROOK || candidate_piece == QUEEN) && candidate_color == opponent)
-			    return true;
+		    {
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				return true;
+			}
 		}
 
 		//check horizontal (for rook and queen)
@@ -609,12 +729,25 @@ public:
 			    break;
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == ROOK || candidate_piece == QUEEN) && candidate_color == opponent)
-			    return true;
+			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				return true;
+			}
 		}
 		//right
 		ex = x, why = y;
@@ -627,12 +760,25 @@ public:
 			    break;
 			Piece candidate_piece = candidate_square->getPiece();
 			Color candidate_color = candidate_square->getColor();
-			if (candidate_color == turn)
+			if (candidate_color == temp)
 			{
                 break;
             }
 			if ((candidate_piece == ROOK || candidate_piece == QUEEN) && candidate_color == opponent)
-			    return true;
+			{
+				/*check_piece = candidate_piece;
+				check_color = candidate_color;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+					else 
+					    break;
+				}
+				check_x = ex;
+				check_y = why;
+				return true;
+			}
 		}
 
         cout<<"CHECKING KNIGHTS"<<endl;
@@ -643,94 +789,264 @@ public:
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x + 2, why = y - 1;
         if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x - 2, why = y + 1;
 		if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x - 2, why = y - 1;
 		if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x + 1, why = y + 2;
 		if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x + 1, why = y - 2;
 		if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
         ex = x - 1, why = y + 2;
 		if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 		ex = x - 1, why = y - 2;
 		if (ex >= 0 && ex <= 7 && why >= 0 && why <= 7)
 		{
 			candidate_square = getSquare(ex, why);
 		    if (candidate_square->getPiece() == KNIGHT && candidate_square->getColor() == opponent)
-		        return true;
+		    {
+				/*check_piece = KNIGHT;
+				check_color = opponent;*/
+				if (king_is_in_check == true)
+				{
+					if (checkValidity(ex,why))
+					    return true;
+				}
+				else 
+				{
+					check_x = ex;
+				    check_y = why;
+				    return true;
+				}
+			}
 		}
 
         cout<<"CHECKING PAWNS"<<endl;
 		//check one step diagonal (for pawns)
-		if (turn == WHITE)//black pawns attacking
+		if (temp == WHITE)//black pawns attacking
         {
 			//2 cases
 			ex = x - 1, why = y + 1;
 			if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 			{
+				//cout<<"Temp is white"<<endl;
 				Square* candidate_square = getSquare(ex, why);
 			    if (candidate_square->getPiece() == PAWN && candidate_square->getColor() == opponent)
-		            return true;
+		        {
+					//cout<<"true"<<endl;
+				    /*check_piece = PAWN;
+				    check_color = opponent;*/
+					if (king_is_in_check == true)
+				    {
+					    if (checkValidity(ex,why))
+					        return true;
+				    }
+					else 
+					{
+						check_x = ex;
+				        check_y = why;
+				        return true;
+					}
+			    }
 			}
 			ex = x + 1, why = y + 1;
 			if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 			{
 				Square* candidate_square = getSquare(ex, why);
 			    if (candidate_square->getPiece() == PAWN && candidate_square->getColor() == opponent)
-		            return true;
+		        {
+				    /*check_piece = PAWN;
+				    check_color = opponent;*/
+					if (king_is_in_check == true)
+				    {
+					    if (checkValidity(ex,why))
+					        return true;
+			 	    } 
+					else 
+					{
+						check_x = ex;
+				        check_y = why;
+				        return true;
+					}
+			    }
 			}
 		}
-		else if (turn == BLACK) //white pawns attacking
-		{
+		else if (temp == BLACK) //white pawns attacking
+		{   //cout<<"temp is black"<<endl;
 			//2 cases
 			ex = x + 1, why = y - 1;
 			if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 			{
 				Square* candidate_square = getSquare(ex, why);
 			    if (candidate_square->getPiece() == PAWN && candidate_square->getColor() == opponent)
-		            return true;
+		        {
+				    /*check_piece = PAWN;
+				    check_color = opponent;*/
+					if (king_is_in_check == true)
+				    {
+					    if (checkValidity(ex,why))
+					        return true;
+			      	}
+					else 
+					{
+						check_x = ex;
+				        check_y = why;
+				        return true;
+					}
+			    }
 			}
 			ex = x - 1, why = y - 1;
 			if (ex >=0 && ex <= 7 && why >= 0 && why <= 7)
 			{
 				Square* candidate_square = getSquare(ex, why);
 			    if (candidate_square->getPiece() == PAWN && candidate_square->getColor() == opponent)
-		            return true;
+		        {
+				    /*check_piece = PAWN;
+				    check_color = opponent;*/
+					if (king_is_in_check == true)
+				    {
+					    if (checkValidity(ex,why))
+					        return true;
+			      	}
+					else 
+					{
+						check_x = ex;
+				        check_y = why;
+				        return true;
+					}
+			    }
 			}
 		}
 
@@ -745,15 +1061,60 @@ public:
 				ex = x + i, why = y + j;
 				if (ex < 0 || ex > 7 || why < 0 || why > 7)
                     continue;
-				cout<<ex<<" "<<why<<endl;
+				//cout<<ex<<" "<<why<<endl;
                 candidate_square = getSquare(ex,why);
 				if (candidate_square->getPiece() == KING && candidate_square->getColor() == opponent)
-				    return true;
+				{
+				    /*check_piece = KING;
+				    check_color = opponent;*/
+					if (king_is_in_check == true)
+				    {
+					    if (checkValidity(ex,why))
+					        return true;
+					}
+					else 
+					{
+					    check_x = ex;
+				        check_y = why;
+				        return true;
+					}
+			    }
             }
 		}
 		//if none of the pieces from opposite color are attacking, square is not under threat
+		/*check_piece = EMPTY;
+		check_color = NONE;*/
+		if (king_is_in_check == true)
+		    return false;
+		check_x = -1;
+		check_y = -1;
 		return false;
     }
+    
+    bool checkValidity(int x, int y)
+	{
+		Square* that_space = getSquare(check_x, check_y);
+		Square* this_piece = getSquare(x,y);
+        Color temp_color;
+		Piece temp_piece;
+        
+	    temp_color = that_space->getColor();
+		temp_piece = that_space->getPiece();
+		
+        that_space->setSpace(this_piece);
+		this_piece->setEmpty();
+
+		Square* kingSquare = getKingSquare();
+
+		bool check = isKingInCheck(kingSquare);
+		
+		this_piece->setSpace(that_space);
+		that_space->setPieceAndColor(temp_piece, temp_color);
+
+	    return check;
+	}
+
+   //Piece moves
 
 	bool moveKing(Square* thisKing, Square* thatSpace)
 	{
@@ -864,7 +1225,7 @@ public:
 			    yIncrement = (thatY - queenY) / (abs(thatY - queenY));
 			    for (int i = 1; i < abs(queenX - thatX); i++)
 			    {
-				    cout << "It got here somehow";
+				    //cout << "It got here somehow";
 				    if (square[queenX + xIncrement*i][queenY + yIncrement*i].getColor() != NONE)
 					    return false;
                 }
@@ -878,7 +1239,10 @@ public:
 		    thisQueen->setEmpty();
 			Square* kingSquare = getKingSquare();
 			if (!isKingInCheck(kingSquare))
+			{
+				//cout<<"Queen Move, King is not in Check"<<endl;
 				return true;
+			}
 		    else
 			{
 				thisQueen->setSpace(thatSpace);
@@ -899,13 +1263,13 @@ public:
 	    bool invalid = false;
 	    if (abs(bishopX - thatX) == abs(bishopY - thatY))
 	    {
-		    int xIncrement = (thatX - bishopX) / (abs(thatX - bishopX));
-		    int yIncrement = (thatY - bishopY) / (abs(thatY - bishopY));
+		    int dx = (thatX - bishopX) / (abs(thatX - bishopX));
+		    int dy = (thatY - bishopY) / (abs(thatY - bishopY));
 
 		    for (int i = 1; i < abs(bishopX - thatX); i++)
 		    {
-			    cout << "It got here somehow";
-			    if (square[bishopX + xIncrement*i][bishopY + yIncrement*i].getColor() != NONE)
+			    //cout << "It got here somehow";
+			    if (square[bishopX + dx*i][bishopY + dy*i].getColor() != NONE)
 				    return false;
 			}
 	    }
@@ -1006,6 +1370,7 @@ public:
 
     bool movePawn(Square* thisPawn, Square* thatSpace)
     {
+		//cout<<"falnse"<<endl;
 	    bool invalid = false;
 	    int pawnX = thisPawn->getX();
 	    int pawnY = thisPawn->getY();
@@ -1014,6 +1379,7 @@ public:
 
      	if (thisPawn->getColor() == WHITE) //for white pawn; single and double moves
 	    {
+			//cout<<"\nHello";
 			if (pawnX == thatX && (thatY == pawnY + 1 || (pawnY == 1 && thatY == pawnY + 2)) && thatSpace->getColor() == NONE)
 		    {
 				char ch = 'E';
@@ -1040,11 +1406,12 @@ public:
 			                default: cout << "Can't promote to that piece"<<endl; break;
 					    }
 					}
+					
                     return true;
                 }
 			    else
 				{
-				    cout<<"King is in check"<<endl;
+				    cout<<"Hello, King is in check"<<endl;
 					thisPawn->setSpace(thatSpace);
 			        thatSpace->setEmpty();
 				    return false;
@@ -1134,7 +1501,7 @@ int main()
 	Board b;
 	string s, p1, p2;
 	bool newgame = true;
-	cout <<"Chess v1.0"<<endl<<"by Joel Jacob"<<endl;
+	cout <<"Chess v1.1"<<endl<<"by Joel Jacob"<<endl;
 	cout << "Enter any key to continue" << endl;
 	cin >> s;
 
@@ -1146,7 +1513,19 @@ int main()
 		while (b.playGame(p1,p2));
 		cout << "Do you want to play again? ";
 		cin >> s;
-	}while(s=="Y"||s=="y");
+	} while(s=="Y"||s=="y");
 
 	return 0;
 }
+
+
+/*
+Procedure after any move is played
+
+For eg. If its white's move,
+
+after white plays a move, check whether white's king is in check -- this is checked after every move in their respective functions 
+after that, change turns to black 
+then check if black king is in checkmate 
+
+*/
